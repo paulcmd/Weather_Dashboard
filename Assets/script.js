@@ -8,11 +8,17 @@ function Init() {
     if (savedCities) {
         currentCity = savedCities[savedCities.length - 1];
         showPrevious();
-        getCurrent(currentCity);
+        getCurrentCity(currentCity);
     } else {
-        getCurrent("Tucson");
+        getCurrentCity("Tucson");
     }
 
+};
+
+function error(){
+    //If no previous searches, pass a city
+    currentCity = "Tucson"
+    getCurrentCity(currentCity);
 }
 
 function showPrevious() {
@@ -35,6 +41,7 @@ function showPrevious() {
 
 
 function getCurrentCity(city) {
+    console.log(city);
     var queryURL = "https://api.openweathermap.org/data/2.5/weather?q=" + city + "&APPID=ebe2b8a78d6c28adbd5523668a5e0c6c";
     $.ajax({
         url: queryURL,
@@ -42,12 +49,14 @@ function getCurrentCity(city) {
         error: function () {
             savedCities.splice(savedCities.indexOf(city), 1);
             localStorage.setItem("weatherCities", JSON.stringify(savedCities));
-            initialize();
+            console.log(savedCities);
+            Init();
         }
     }).then(function (response) {
+        console.log("Weather response" + response);
         //create the card
         var currCard = $("<div>").attr("class", "card bg-light");
-        $("#earthforecast").append(currCard);
+        $("#weatherforecast").append(currCard);
 
         //add location to card header
         var currCardHead = $("<div>").attr("class", "card-header").text("Current weather for " + response.name);
@@ -87,14 +96,11 @@ function getCurrentCity(city) {
             var bgColor;
             if (uvIndex <= 3) {
                 bgColor = "green";
-            }
-            else if (uvIndex >= 3 || uvIndex <= 6) {
+            } else if (uvIndex >= 3 || uvIndex <= 6) {
                 bgColor = "yellow";
-            }
-            else if (uvindex >= 6 || uvindex <= 8) {
+            } else if (uvindex >= 6 || uvindex <= 8) {
                 bgColor = "orange";
-            }
-            else {
+            } else {
                 bgColor = "red";
             }
             var uvDisplay = $("<p>").attr("class", "card-text").text("UV Index: ");
@@ -107,6 +113,87 @@ function getCurrentCity(city) {
         getForecast(response.id);
     });
 }
+
+function getForecast(city) {
+    //get 5 day forecast
+    var queryURL = "https://api.openweathermap.org/data/2.5/forecast?id=" + city + "&APPID=ebe2b8a78d6c28adbd5523668a5e0c6c&units=imperial";
+    $.ajax({
+        url: queryURL,
+        method: "GET"
+    }).then(function (response) {
+        //add container div for forecast cards
+        var newrow = $("<div>").attr("class", "forecast");
+        $("#weatherforecast").append(newrow);
+
+        //loop through array response to find the forecasts for 15:00
+        for (var i = 0; i < response.list.length; i++) {
+            if (response.list[i].dt_txt.indexOf("15:00:00") !== -1) {
+                var newCol = $("<div>").attr("class", "one-fifth");
+                newrow.append(newCol);
+
+                var newCard = $("<div>").attr("class", "card text-white bg-primary");
+                newCol.append(newCard);
+
+                var cardHead = $("<div>").attr("class", "card-header").text(moment(response.list[i].dt, "X").format("MMM Do"));
+                newCard.append(cardHead);
+
+                var cardImg = $("<img>").attr("class", "card-img-top").attr("src", "https://openweathermap.org/img/wn/" + response.list[i].weather[0].icon + "@2x.png");
+                newCard.append(cardImg);
+
+                var bodyDiv = $("<div>").attr("class", "card-body");
+                newCard.append(bodyDiv);
+
+                bodyDiv.append($("<p>").attr("class", "card-text").html("Temp: " + response.list[i].main.temp + " &#8457;"));
+                bodyDiv.append($("<p>").attr("class", "card-text").text("Humidity: " + response.list[i].main.humidity + "%"));
+            }
+        }
+    });
+}
+
+function clear() {
+    //clear all the weather
+    $("#weatherforecast").empty();
+}
+
+function saveCity(newCity) {
+    //add this to the saved locations array
+    if (savedLocations === null) {
+        savedLocations = [newCity];
+    } else if (savedLocations.indexOf(newCity) === -1) {
+        savedLocations.push(newCity);
+    }
+    //save the new array to localstorage
+    localStorage.setItem("weatherCities", JSON.stringify(savedLocations));
+    showPrevious();
+}
+
+$("#searchbtn").on("click", function () {
+    //don't refresh the screen
+    event.preventDefault();
+    //grab the value of the input field
+    var newCity = $("#searchinput").val().trim();
+    //if loc wasn't empty
+    if (newCity !== "") {
+        //clear the previous forecast
+        clear();
+        currentCity = newCity;
+        saveCity(newCity);
+        //clear the search field value
+        $("#searchinput").val("");
+        //get the new forecast
+        getCurrentCity(newCity);
+    }
+});
+
+$(document).on("click", "#loc-btn", function () {
+    clear();
+    currentCity = $(this).text();
+    showPrevious();
+    getCurrentCity(currentCity);
+});
+
+Init();
+
 
 
 
